@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>RunnerRank – Gemeinsames Jogging-Ranking</title>
+    <!-- Firebase SDKs (CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: linear-gradient(145deg, #f0f7f0 0%, #e2e9e0 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(2px);
+            border-radius: 32px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.02);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            transition: all 0.2s;
+            border: 1px solid rgba(100,150,80,0.2);
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #1e4a2f, #3b8b3e);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin: 0 0 0.25rem 0;
+            display: inline-block;
+        }
+        .sub {
+            color: #3a5e3a;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #4caf50;
+            padding-left: 12px;
+            font-weight: 500;
+        }
+        h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #1e3a2f;
+            margin: 0 0 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .form-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: flex-end;
+        }
+        .input-group {
+            flex: 1 1 180px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .input-group label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #2c5e2c;
+            letter-spacing: 0.3px;
+        }
+        input, select, button {
+            padding: 10px 14px;
+            border-radius: 60px;
+            border: 1px solid #cbdcc5;
+            background: white;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4caf50;
+            box-shadow: 0 0 0 3px rgba(76,175,80,0.2);
+        }
+        button {
+            background: #2b6e3c;
+            color: white;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        button:hover {
+            background: #1f5430;
+            transform: scale(0.98);
+        }
+        .btn-secondary {
+            background: #4a6a4a;
+        }
+        .btn-outline {
+            background: white;
+            border: 1px solid #2b6e3c;
+            color: #2b6e3c;
+        }
+        .btn-outline:hover {
+            background: #eef5ea;
+        }
+        .btn-danger {
+            background: #bc6c25;
+        }
+        .ranking-table-wrapper {
+            overflow-x: auto;
+            border-radius: 24px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 24px;
+            overflow: hidden;
+        }
+        th {
+            background: #eef3ea;
+            padding: 14px 12px;
+            text-align: left;
+            font-weight: 700;
+            color: #1f4729;
+            cursor: pointer;
+            user-select: none;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e2ecd9;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        .badge {
+            background: #dff0dc;
+            border-radius: 40px;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #1b5e2a;
+            display: inline-block;
+        }
+        .pace-value {
+            font-family: monospace;
+            font-weight: 600;
+        }
+        .activity-list {
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .activity-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: #fafcf8;
+            margin-bottom: 8px;
+            border-radius: 60px;
+            border: 1px solid #e2ecd9;
+        }
+        .activity-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 0.85rem;
+        }
+        .delete-btn {
+            background: none;
+            color: #bc6c25;
+            box-shadow: none;
+            padding: 4px 12px;
+            font-size: 0.75rem;
+            background: #fff1e6;
+        }
+        .delete-btn:hover {
+            background: #fcd9b6;
+            transform: none;
+        }
+        .flex-btns {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        footer {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #547a47;
+            margin-top: 2rem;
+        }
+        @media (max-width: 680px) {
+            body { padding: 12px; }
+            .card { padding: 1rem; }
+            .form-grid { flex-direction: column; }
+            .input-group { width: 100%; }
+            th, td { font-size: 0.8rem; padding: 8px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div>
+                <h1>🏃‍♂️ RunnerRank · Live mit Freunden</h1>
+                <div class="sub">Jeder Lauf erscheint sofort bei allen – gemeinsames Ranking in Echtzeit</div>
+            </div>
+            <div style="font-size:0.8rem; background:#e8f0e5; border-radius: 40px; padding: 8px 16px; margin-top: 10px;">
+                🔗 <span id="shareLink" style="font-family:monospace;"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Eingabeformular -->
+    <div class="card">
+        <h2>➕ Lauf erfassen</h2>
+        <div class="form-grid">
+            <div class="input-group">
+                <label>👤 Läufername</label>
+                <input type="text" id="runnerName" placeholder="z.B. Anna, Lukas" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <label>📏 Distanz (km)</label>
+                <input type="number" id="distance" step="0.01" placeholder="z.B. 5.2">
+            </div>
+            <div class="input-group">
+                <label>⏱️ Zeit (MM:SS)</label>
+                <input type="text" id="timeInput" placeholder="z.B. 24:30">
+            </div>
+            <div class="input-group">
+                <label>⚡ Pace (min/km)</label>
+                <input type="text" id="pacePreview" readonly placeholder="automatisch" style="background:#f1f5ef;">
+            </div>
+            <div class="input-group">
+                <button id="addRunBtn">🏁 Lauf speichern</button>
+            </div>
+        </div>
+        <div style="font-size: 0.75rem; margin-top: 12px; color: #4e6e3e;">💡 Tipp: Zeit immer im Format Minuten:Sekunden (z.B. 24:30). Pace errechnet sich automatisch.</div>
+    </div>
+
+    <!-- Ranking Tabelle -->
+    <div class="card">
+        <h2>🏆 Live-Ranking (alle Freunde)</h2>
+        <div class="ranking-table-wrapper">
+            <table id="rankingTable">
+                <thead>
+                    <tr><th data-sort="name">Name ⬍</th><th data-sort="totalKm">Gesamt-KM ⬍</th><th data-sort="avgPace">Ø Pace (min/km) ⬍</th><th data-sort="bestPace">Beste Pace ⬍</th><th>Anzahl Läufe</th></tr>
+                </thead>
+                <tbody id="rankingBody">
+                    <tr><td colspan="5" style="text-align:center;">Lade Daten...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top: 12px; font-size: 0.7rem; color:#3a623a;">📌 Klick auf Spaltenüberschrift zum Sortieren: KM (höher = besser) ⬇ | Pace (niedriger = besser) ⬆</div>
+    </div>
+
+    <!-- Einzelaktivitäten & Verwaltung -->
+    <div class="card">
+        <h2>📋 Alle Aktivitäten</h2>
+        <div id="activitiesList" class="activity-list"></div>
+        <div class="flex-btns" style="justify-content: space-between;">
+            <button id="clearAllBtn" class="btn-danger" style="background:#bc6c25;">🗑 Alle Daten löschen (für alle!)</button>
+            <button id="debugExampleBtn" class="btn-secondary" style="background:#3e6b46;">➕ Beispieldaten laden</button>
+        </div>
+    </div>
+    <footer>
+        🔥 Echtzeit-Datenbank via Firebase • Jeder mit dem Link sieht sofort alle Änderungen
+    </footer>
+</div>
+
+<script>
+    // ======================== FIREBASE KONFIGURATION (DEINE ECHTEN DATEN) ========================
+    const firebaseConfig = {
+        apiKey: "AIzaSyA1Jn2Qs4fvl5asDErdG3p2HGhdQqzHUUs",
+        authDomain: "runnerrank-d212a.firebaseapp.com",
+        databaseURL: "https://runnerrank-d212a-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "runnerrank-d212a",
+        storageBucket: "runnerrank-d212a.firebasestorage.app",
+        messagingSenderId: "170852384878",
+        appId: "1:170852384878:web:c26cca59306a935788a67f"
+    };
+
+    // Firebase initialisieren
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const activitiesRef = database.ref('activities');
+
+    // Globale Variable für die Aktivitäten (wird live befüllt)
+    let activities = [];
+
+    // ======================== HILFSFUNKTIONEN ========================
+    function parseTimeToMinutes(timeStr) {
+        const trimmed = timeStr.trim();
+        const parts = trimmed.split(':');
+        if (parts.length !== 2) return null;
+        const minutes = parseInt(parts[0], 10);
+        const seconds = parseInt(parts[1], 10);
+        if (isNaN(minutes) || isNaN(seconds)) return null;
+        if (seconds < 0 || seconds >= 60) return null;
+        return minutes + seconds / 60;
+    }
+
+    function formatTimeFromMinutes(minutesDecimal) {
+        if (isNaN(minutesDecimal)) return '--:--';
+        const mins = Math.floor(minutesDecimal);
+        const secs = Math.round((minutesDecimal - mins) * 60);
+        if (secs === 60) return `${mins+1}:00`;
+        return `${mins}:${secs < 10 ? '0' + secs : secs}`;
+    }
+
+    function formatPace(pace) {
+        if (!isFinite(pace) || pace === null || pace === undefined) return '—';
+        const mins = Math.floor(pace);
+        const secs = Math.round((pace - mins) * 60);
+        if (secs === 60) return `${mins+1}:00`;
+        return `${mins}:${secs < 10 ? '0' + secs : secs}`;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // Aggregierte Statistiken pro Läufer
+    function getRunnerStats() {
+        const statsMap = new Map();
+        for (const act of activities) {
+            const name = act.name;
+            if (!statsMap.has(name)) {
+                statsMap.set(name, { totalKm: 0, totalTime: 0, bestPace: Infinity, runCount: 0 });
+            }
+            const stat = statsMap.get(name);
+            stat.totalKm += act.distance_km;
+            stat.totalTime += act.time_minutes;
+            stat.runCount += 1;
+            const pace = act.time_minutes / act.distance_km;
+            if (pace < stat.bestPace) stat.bestPace = pace;
+        }
+        const result = [];
+        for (const [name, stat] of statsMap.entries()) {
+            result.push({
+                name: name,
+                totalKm: stat.totalKm,
+                avgPace: stat.totalTime / stat.totalKm,
+                bestPace: stat.bestPace === Infinity ? null : stat.bestPace,
+                runCount: stat.runCount
+            });
+        }
+        return result;
+    }
+
+    // Sortierung (aktuell)
+    let currentSort = { column: 'totalKm', direction: 'desc' };
+
+    function renderRanking() {
+        const runners = getRunnerStats();
+        const tbody = document.getElementById('rankingBody');
+        if (runners.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">🏃‍♀️ Noch keine Läufe – leg los!</td></tr>';
+            return;
+        }
+
+        // Sortieren
+        const sorted = [...runners];
+        const col = currentSort.column;
+        const dir = currentSort.direction;
+        sorted.sort((a, b) => {
+            let valA, valB;
+            if (col === 'name') {
+                valA = a.name.toLowerCase();
+                valB = b.name.toLowerCase();
+                return dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            } else if (col === 'totalKm') {
+                valA = a.totalKm;
+                valB = b.totalKm;
+            } else if (col === 'avgPace') {
+                valA = a.avgPace;
+                valB = b.avgPace;
+            } else if (col === 'bestPace') {
+                valA = (a.bestPace === null ? Infinity : a.bestPace);
+                valB = (b.bestPace === null ? Infinity : b.bestPace);
+            } else {
+                return 0;
+            }
+            if (dir === 'asc') return valA > valB ? 1 : (valA < valB ? -1 : 0);
+            else return valA < valB ? 1 : (valA > valB ? -1 : 0);
+        });
+
+        tbody.innerHTML = '';
+        for (const runner of sorted) {
+            const row = tbody.insertRow();
+            row.insertCell(0).innerHTML = `<strong>${escapeHtml(runner.name)}</strong>`;
+            row.insertCell(1).innerHTML = `${runner.totalKm.toFixed(2)} km`;
+            row.insertCell(2).innerHTML = `<span class="pace-value">${formatPace(runner.avgPace)}</span> min/km`;
+            row.insertCell(3).innerHTML = `<span class="badge">🏅 ${runner.bestPace ? formatPace(runner.bestPace) : '—'}</span>`;
+            row.insertCell(4).innerHTML = `${runner.runCount} 🏃`;
+        }
+
+        // Sortier-Indikatoren aktualisieren
+        document.querySelectorAll('#rankingTable th').forEach(th => {
+            const sortKey = th.getAttribute('data-sort');
+            if (sortKey === currentSort.column) {
+                th.innerHTML = th.innerText.replace(/[⬍⬆⬇]/g, '') + (currentSort.direction === 'desc' ? ' ⬇' : ' ⬆');
+            } else {
+                th.innerHTML = th.innerText.replace(/[⬍⬆⬇]/g, '') + ' ⬍';
+            }
+        });
+    }
+
+    function renderActivities() {
+        const container = document.getElementById('activitiesList');
+        if (activities.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px;">✨ Noch keine Läufe. Füge deine erste Joggingeinheit hinzu!</div>';
+            return;
+        }
+        const sortedActs = [...activities].reverse();
+        container.innerHTML = '';
+        for (const act of sortedActs) {
+            const pace = act.time_minutes / act.distance_km;
+            const div = document.createElement('div');
+            div.className = 'activity-item';
+            div.innerHTML = `
+                <div class="activity-info">
+                    <span><strong>${escapeHtml(act.name)}</strong></span>
+                    <span>📏 ${act.distance_km.toFixed(2)} km</span>
+                    <span>⏱️ ${formatTimeFromMinutes(act.time_minutes)}</span>
+                    <span>⚡ Pace ${formatPace(pace)}/km</span>
+                </div>
+                <button class="delete-btn" data-id="${act.id}">🗑 löschen</button>
+            `;
+            container.appendChild(div);
+        }
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = btn.getAttribute('data-id');
+                activitiesRef.child(id).remove();
+            });
+        });
+    }
+
+    // Firebase Echtzeit-Listener
+    function setupFirebaseSync() {
+        activitiesRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            activities = [];
+            if (data) {
+                for (const [id, act] of Object.entries(data)) {
+                    activities.push({ id, ...act });
+                }
+            }
+            renderRanking();
+            renderActivities();
+        });
+    }
+
+    // Neuen Lauf hinzufügen - KORRIGIERTE ID ohne Punkte
+    async function addRun(name, distanceKm, timeMinutes) {
+        if (!name || name.trim() === '') {
+            alert('Bitte einen Namen eingeben.');
+            return false;
+        }
+        if (isNaN(distanceKm) || distanceKm <= 0) {
+            alert('Distanz muss eine positive Zahl sein (km).');
+            return false;
+        }
+        if (isNaN(timeMinutes) || timeMinutes <= 0) {
+            alert('Ungültige Zeit. Bitte Format MM:SS verwenden.');
+            return false;
+        }
+        // Erzeuge einen gültigen Firebase-Pfad: nur Buchstaben, Zahlen, Bindestrich, Unterstrich
+        const timestamp = Date.now();
+        const randomPart = Math.random().toString(36).substring(2, 10); // entfernt den "0." am Anfang
+        const newId = `${timestamp}_${randomPart}`;  // Beispiel: "1742589123456_k3f9d2"
+        const newRun = {
+            name: name.trim(),
+            distance_km: parseFloat(distanceKm),
+            time_minutes: timeMinutes
+        };
+        try {
+            await activitiesRef.child(newId).set(newRun);
+            return true;
+        } catch (err) {
+            console.error(err);
+            alert('Fehler beim Speichern: ' + err.message);
+            return false;
+        }
+    }
+
+    // Alle Daten löschen
+    function clearAllData() {
+        if (confirm('⚠️ ACHTUNG: Dies löscht ALLE Läufe für ALLE Freunde! Fortfahren?')) {
+            activitiesRef.remove().catch(err => alert('Fehler: ' + err));
+        }
+    }
+
+    // Beispieldaten (auch hier korrekte IDs)
+    function loadExampleData() {
+        if (activities.length > 0) {
+            if (!confirm('Beispieldaten ersetzen deine aktuellen Daten? Fortfahren?')) return;
+            clearAllData();
+        }
+        const exampleRuns = [
+            { name: 'Anna', distance_km: 8.5, time_minutes: 46.2 },
+            { name: 'Lukas', distance_km: 10.0, time_minutes: 52.5 },
+            { name: 'Mia', distance_km: 5.2, time_minutes: 27.8 },
+            { name: 'Tom', distance_km: 12.0, time_minutes: 63.0 },
+            { name: 'Anna', distance_km: 5.0, time_minutes: 24.2 },
+            { name: 'Lukas', distance_km: 7.3, time_minutes: 40.1 },
+            { name: 'Mia', distance_km: 11.2, time_minutes: 61.0 }
+        ];
+        for (const run of exampleRuns) {
+            const timestamp = Date.now() + Math.random() * 10000;
+            const randomPart = Math.random().toString(36).substring(2, 8);
+            const newId = `${timestamp}_${randomPart}`;
+            activitiesRef.child(newId).set(run);
+        }
+    }
+
+    // UI-Eventbinding
+    function bindUI() {
+        document.getElementById('addRunBtn').addEventListener('click', async () => {
+            const name = document.getElementById('runnerName').value;
+            const distance = parseFloat(document.getElementById('distance').value);
+            const timeStr = document.getElementById('timeInput').value;
+            if (!timeStr.includes(':')) {
+                alert('Bitte Zeit im Format MM:SS angeben, z.B. 24:30');
+                return;
+            }
+            const minutes = parseTimeToMinutes(timeStr);
+            if (minutes === null || minutes <= 0) {
+                alert('Zeit ungültig: Nutze Minuten:Sekunden (z.B. 42:15)');
+                return;
+            }
+            const success = await addRun(name, distance, minutes);
+            if (success) {
+                document.getElementById('runnerName').value = '';
+                document.getElementById('distance').value = '';
+                document.getElementById('timeInput').value = '';
+                document.getElementById('pacePreview').value = '';
+            }
+        });
+
+        document.getElementById('clearAllBtn').addEventListener('click', clearAllData);
+        document.getElementById('debugExampleBtn').addEventListener('click', loadExampleData);
+
+        // Sortierköpfe
+        document.querySelectorAll('#rankingTable th').forEach(th => {
+            const sortKey = th.getAttribute('data-sort');
+            if (!sortKey) return;
+            th.style.cursor = 'pointer';
+            th.addEventListener('click', () => {
+                if (currentSort.column === sortKey) {
+                    currentSort.direction = currentSort.direction === 'desc' ? 'asc' : 'desc';
+                } else {
+                    currentSort.column = sortKey;
+                    if (sortKey === 'avgPace' || sortKey === 'bestPace') {
+                        currentSort.direction = 'asc';
+                    } else if (sortKey === 'totalKm') {
+                        currentSort.direction = 'desc';
+                    } else {
+                        currentSort.direction = 'asc';
+                    }
+                }
+                renderRanking();
+            });
+        });
+
+        // Pace Preview
+        const distInput = document.getElementById('distance');
+        const timeInput = document.getElementById('timeInput');
+        const pacePreview = document.getElementById('pacePreview');
+        function updatePacePreview() {
+            const dist = parseFloat(distInput.value);
+            const timeStr = timeInput.value;
+            if (!isNaN(dist) && dist > 0 && timeStr && timeStr.includes(':')) {
+                const minutes = parseTimeToMinutes(timeStr);
+                if (minutes !== null && minutes > 0) {
+                    const pace = minutes / dist;
+                    if (isFinite(pace)) {
+                        pacePreview.value = `${formatPace(pace)} min/km`;
+                        return;
+                    }
+                }
+            }
+            pacePreview.value = '⏳ gib Distanz & Zeit ein';
+        }
+        distInput.addEventListener('input', updatePacePreview);
+        timeInput.addEventListener('input', updatePacePreview);
+
+        // Link anzeigen
+        document.getElementById('shareLink').innerText = window.location.href;
+
+        // Enter-Taste
+        const inputs = ['runnerName', 'distance', 'timeInput'];
+        inputs.forEach(id => {
+            const el = document.getElementById(id);
+            el.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('addRunBtn').click();
+                }
+            });
+        });
+    }
+
+    // Start
+    setupFirebaseSync();
+    bindUI();
+</script>
+</body>
+</html>
